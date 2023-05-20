@@ -1,0 +1,2075 @@
+slip 1_1 ---
+
+
+#include<stdio.h>
+#include<unistd.h>
+#include<sys/stat.h>
+int isFileExists(const char*path);
+int isFileExistsAccess(const char *path);
+int isFileExistsStats(const char *path);
+int main()
+{
+char path[100];
+printf("Enter source file path: ");
+scanf("%s",path);
+if(isFileExistsAccess(path))
+{
+printf("File exists at path '%s'\n",path);
+}
+else
+{
+printf("File does not exists at path '%s'\n",path);
+}
+return 0;
+}
+int isFileExists(const char *path)
+{
+FILE *fptr=fopen(path,"r");
+if(fptr==NULL)
+return 0;
+fclose(fptr);
+return 1;
+}
+int isFileExistsAccess(const char *path)
+{
+if(access(path,F_OK)==-1)
+return 0;
+return 1;
+}
+int isFileExistsStats(const char *path)
+{
+struct stat stats;
+stat(path,&stats);
+if(stats.st_mode & F_OK)
+return 1;
+return 0;
+}
+
+output
+student@MSCComp26:~/Downloads/mcs$./a.out
+Enter source file path: temp.txt
+File exists at path 'temp.txt'
+_____________________________________________________
+
+slip 1_2
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<signal.h>
+void main()
+{
+sigset_t s,os,ps;
+sigemptyset(&s);
+sigaddset(&s,SIGINT);
+sigprocmask(SIG_BLOCK,&s,&os);
+printf("Old Signal set: %8.8ld.\n",os);
+sigpending(&ps);
+printf("Pending set: %8.8ld.\n",ps);
+kill(getpid(),SIGINT);
+sigpending(&ps);
+printf("Pending set: %8.8ld.\n",ps);
+sigprocmask(SIG_UNBLOCK,&s,&os);
+exit(0);
+}
+
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+Old Signal set: 140737233498160.
+Pending set: 00000008.
+Pending set: 00000008.
+
+
+=====================================================
+slip2_a
+
+#include <stdio.h>
+#include <dirent.h>
+#include <string.h>
+#include <limits.h>
+void listFiles(char* path, char* str) {
+DIR *dr = opendir(path);
+if(dr != NULL) {
+struct dirent *de;while((de = readdir(dr)) != NULL) {
+char *name = de->d_name;
+if(strstr(name, str)) {
+printf("%s/%s\n", path, name);
+}
+if(de->d_type == DT_DIR) {
+if(strcmp(name, "..") != 0 && strcmp(name, ".") != 0) {
+char npath[PATH_MAX];
+sprintf(npath, "%s/%s", path, name);
+listFiles(npath, str);
+}
+}
+}
+closedir(dr);
+}
+}
+int main(int argc, char* argv[]) {
+if(argc != 2) {
+printf("Usage: %s \n", argv[0]);
+return 1;
+}
+listFiles(".",argv[1]);
+return 0;
+}
+
+output----
+student@MSCComp26:~/Downloads/mcs$ ./a.out txt
+./temp.txt
+./AOS.txt
+
+_______________________________
+
+slip2_b
+
+#include <stdio.h>
+#include <setjmp.h>
+#include <stdlib.h>
+static void f1(int,int,int,int);
+static void f2(void);
+static jmp_buf jmpbuffer;
+static int globval;int main(void)
+{
+int autoval;
+register regival;
+volatile int volaval;
+static int statval;
+globval=1; autoval=2; regival=3; volaval=4; statval=5;
+if(setjmp(jmpbuffer)!=0)
+{
+printf("After longjmp:\n");
+printf("globval=%d, autoval=%d, regival=%d, volaval=%d, statval=%d\
+n",globval,autoval,regival,volaval,statval);
+exit(0);
+}
+globval=95; autoval=96; regival=97; volaval=98; statval=99;
+f1(autoval,regival,volaval,statval);
+exit(0);
+}
+static void f1(int i,int j,int k,int l)
+{
+printf("In f1():\n");
+printf("globval=%d, autoval=%d, regival=%d, volaval=%d, statval=%d\n\n",globval,i,j,k,l);
+f2();
+}
+static void f2(void)
+{
+longjmp(jmpbuffer,1);
+}
+
+output----
+student@MSCComp26:~/Downloads/mcs$ ./a.out 
+In f1():
+globval=95, autoval=96, regival=97, volaval=98, statval=99
+
+After longjmp:
+globval=95, autoval=96, regival=3, volaval=98, statval=99n
+
+========================================================
+slip 3_a
+
+#include<stdio.h>
+#include<unistd.h>
+#include<sys/stat.h>
+#include<time.h>
+void printFileProperties(struct stat stats);
+int main(){
+char path[100];
+struct stat stats;
+printf(" Enter source file path:");
+scanf("%s",path);
+if(stat(path,&stats)==0)
+{
+printFileProperties(stats);
+}
+else
+{
+printf("unable to get file properties.\n");
+printf("please check whether'%s'file exist.\n",path);
+}
+return 0;
+}
+void printFileProperties(struct stat stats)
+{
+struct tm dt;
+printf("\n File access: ");
+if(stats.st_mode & R_OK)
+printf("read ");
+if(stats.st_mode & W_OK);
+printf("write ");
+if(stats.st_mode & X_OK);
+printf("execute");
+printf("\n File size :%ld",stats.st_size);
+dt=*(gmtime(&stats.st_ctime));
+printf("\n created on :%d-%d-%d-%d-%d-%d",dt.tm_mday,dt.tm_mon,dt.tm_year+1900,dt.tm_hour,dt.tm_min,dt.tm_sec);
+dt=*(gmtime(&stats.st_mtime));
+printf("\n modified on :%d-%d-%d-%d-%d-%d\n",dt.tm_mday,dt.tm_mon,dt.tm_year+1900,dt.tm_hour,dt.tm_min,dt.tm_sec);
+}
+
+output----
+student@MSCComp26:~/Downloads/mcs$ vi slip3.c
+student@MSCComp26:~/Downloads/mcs$ cc slip3.c
+student@MSCComp26:~/Downloads/mcs$ ./a.out txt
+ Enter source file path:temp.txt
+
+ File access: read write execute
+ File size :19
+ created on :6-4-2023-5-22-32
+ modified on :6-4-2023-5-21-24
+-----------------------------------------------------------
+slip3_b
+
+#include<stdio.h>
+#include<unistd.h>
+#include<string.h>
+int main()
+{
+int fd[2],ret=0;
+char buffer[]="Hello world";
+char readBuff[BUFSIZ];
+pid_t childpid;
+pipe(fd);
+childpid=fork();
+if(childpid==0)
+{
+close(fd[0]);
+printf("Child inititates communication by writting the data at output side of the pipe\n");
+write(fd[1],buffer,sizeof(buffer));
+}
+else
+{
+close(fd[1]);
+ret=read(fd[0],readBuff,sizeof(readBuff));
+printf("THe data read by parent process is :%s\n",readBuff);
+}
+return 0;
+}
+
+
+output---
+student@MSCComp26:~/Downloads/mcs$ vi slip3_b.c
+student@MSCComp26:~/Downloads/mcs$ cc slip3_b.c
+student@MSCComp26:~/Downloads/mcs$ ./a.out 
+Child inititates communication by writting the data at output side of the pipe
+THe data read by parent process is :Hello world
+
+===========================================================================
+
+slip4_a
+
+#include<stdio.h>
+#include<unistd.h>
+#include<sys/stat.h>
+#include<time.h>
+void printFileProperties(struct stat stats);
+int main()
+{
+int fd;
+char path[100];
+struct stat stats;
+printf(" Enter source file path:");
+scanf("%s",path);if((fd=creat(path,S_IWUSR))<0)
+{
+printf("error");
+}
+else if(fstat(fd,&stats)!=0)
+{
+printf("error");
+}
+else
+{
+puts("fstat() returned:");
+printf(" inode: %d\n", (int)stats.st_ino);
+printf(" dev id: %d\n", (int)stats.st_dev);
+printf(" mode: %d\n", (int)stats.st_mode);
+printf(" links: %d\n", (int)stats.st_nlink);
+printf(" uid: %d\n", (int)stats.st_uid);
+printf(" gid: %d\n", (int)stats.st_gid);
+}
+return 0;
+}
+void printFileProperties(struct stat stats)
+{
+struct tm dt;
+printf("\n File access: ");
+if(stats.st_mode & R_OK)
+printf("read ");
+if(stats.st_mode & W_OK);
+printf("write ");
+if(stats.st_mode & X_OK);
+printf("execute");
+printf("\n File size :%ld",stats.st_size);
+dt=*(gmtime(&stats.st_ctime));
+printf("\n created on :%d-%d-%d-%d-%d-%d",dt.tm_mday,dt.tm_mon,dt.tm_year+1900,dt.tm_hour,dt.tm_min,dt.tm_sec);
+dt=*(gmtime(&stats.st_mtime));
+printf("\n modified on :%d-%d-%d-%d-%d-%d\n",dt.tm_mday,dt.tm_mon,dt.tm_year+1900,dt.tm_hour,dt.tm_min,dt.tm_sec);
+}
+ 
+output-----
+student@MSCComp26:~/Downloads/mcs$ ./a.out 
+Enter source file path:temp.txt
+fstat() returned:
+inode: 3418929
+dev id: 2056
+mode: 33204
+links: 1
+uid: 1000
+gid: 1000
+
+---------------------------------------------------
+
+slip4_b
+#include<stdio.h>
+#include<unistd.h>
+int main()
+{
+int fd[2],dupFd;
+char *filename1 ="ls";
+char *filename2 ="wc";
+char *arg1 = "-l";
+pipe(fd);
+if(!fork())// return 0 for child process and 1 for parent process
+{
+close(1); // 1 for closing stdout
+dup(fd[1]);
+close(fd[0]);
+execlp(filename1,filename1,arg1,NULL);
+}else
+{
+close(0);
+dup(fd[0]);
+close(fd[1]);
+execlp(filename2,filename2,arg1,NULL);
+}
+}
+
+output
+student@MSCComp26:~/Downloads/mcs$ vi slip4_b.c
+student@MSCComp26:~/Downloads/mcs$ cc slip4_b.c
+student@MSCComp26:~/Downloads/mcs$ ./a.out 
+14
+===================================================================
+
+slip 5_a
+childmsg.c
+
+#include<stdio.h>
+#include<string.h>
+#include<unistd.h>
+#define MSGSIZE 16
+int main()
+{
+int fd[2],ret=0;
+char buffer[]="Hello World";
+char buffer1[]="Hello SPPU";
+char buffer2[]="Linux is funny";
+char inbuf[MSGSIZE];
+pid_t childpid;
+pipe(fd);
+childpid=fork();
+if(childpid==0)
+{
+printf("Child initiates communication by writing the data at output side of the pipe\n");
+write(fd[1],buffer,MSGSIZE);
+write(fd[1],buffer1,MSGSIZE);
+write(fd[1],buffer2,MSGSIZE);
+}
+else
+{
+for(int i = 0;i < 3; i++)
+{
+read(fd[0],inbuf,MSGSIZE);
+printf("The data read by the parent process is: %s\n",inbuf);
+}
+}
+return 0;
+}
+
+
+output------------
+student@MSCComp26:~/Downloads/mcs$ vi childmsg.c
+student@MSCComp26:~/Downloads/mcs$ cc childmsg.c
+student@MSCComp26:~/Downloads/mcs$ ./a.out 
+Child initiates communication by writing the data at output side of the pipe
+The data read by the parent process is: Hello World
+The data read by the parent process is: Hello SPPU
+The data read by the parent process is: Linux is funny
+
+____________________________________________________________
+
+slip5_b
+
+#include <stdio.h>
+#include <stdlib.h>
+void main()
+{
+FILE *fold1, *fold2, *fnew;
+char ch, fname1[20], fname2[20], fname3[30];
+printf("\n\n Merge two files and write it in a new file :\n");
+printf("-------------------------------------------------\n");printf(" Input the 1st file name : ");
+scanf("%s",fname1);
+printf(" Input the 2nd file name : ");
+scanf("%s",fname2);
+printf(" Input the new file name where to merge the above two files : ");
+scanf("%s",fname3);
+fold1=fopen(fname1, "r");
+fold2=fopen(fname2, "r");
+if(fold1==NULL || fold2==NULL)
+{
+// perror("Error Message ");
+printf(" File does not exist or error in opening...!!\n");
+exit(EXIT_FAILURE);
+}
+fnew=fopen(fname3, "w");
+if(fnew==NULL)
+{
+// perror("Error Message ");
+printf(" File does not exist or error in opening...!!\n");
+exit(EXIT_FAILURE);
+}
+while((ch=fgetc(fold1))!=EOF)
+{
+fputc(ch, fnew);
+}
+while((ch=fgetc(fold2))!=EOF)
+{
+fputc(ch, fnew);
+}
+printf(" The two files merged into %s file successfully..!!\n\n", fname3);
+fclose(fold1);
+fclose(fold2);
+fclose(fnew);
+}
+                
+
+output---
+student@MSCComp26:~/Downloads/mcs$ ./a.out 
+
+ Merge two files and write it in a new file :
+-------------------------------------------------
+ Input the 1st file name : temp.txt
+ Input the 2nd file name : tt.txt
+ Input the new file name where to merge the above two files : temptt.txt
+ The two files merged into temp.txt file successfully..!!
+===============================================================
+
+slip6_1
+
+#include<stdio.h>
+int main()
+{
+FILE *fp;
+char ch, fname[30],newch[500];
+int i=0,j,COUNT=0;
+printf("Enter the filename with extension:");
+gets(fname);
+fp=fopen(fname,"r");
+if(!fp)
+{
+printf("Error in opening the file...\nExiting...");
+return 0;
+}
+printf("\nThe Original content is:\n\n");
+ch=getc(fp);
+while(ch!=EOF)
+{
+COUNT++;
+putchar(ch);
+newch[i]=ch;
+i++;
+ch=getc(fp);
+}
+printf("\n\n\n");
+printf("The content in reverse order is:\n\n");
+for(j=(COUNT-1);j>=0;j--)
+{
+ch=newch[j];
+printf("%c",ch);
+}
+printf("\n");
+return 0;
+}
+
+
+output-----
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+Enter the filename with extension:temp.txt
+
+The Original content is:
+
+rutika
+divya
+priti
+amit
+
+
+The content in reverse order is:
+
+tima
+itirp
+ayvid
+akitur
+
+______________________________________________________
+
+slipno6_b
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<dirent.h>
+#include<sys/stat.h>
+#include<string.h>
+#include<fcntl.h>
+void list(char *p1,char*dname)
+{
+DIR *dir;
+struct dirent *entry;
+struct stat info;
+int cnt=0;dir=opendir(dname);
+if(dir==NULL)
+{
+printf("\n Directory %s Not Found....",dname);
+}
+else
+{
+if(strcmp(p1,"F")==0)
+{
+while((entry=readdir(dir))!=NULL)
+{
+stat(entry->d_name,&info);
+if(info.st_mode & S_IFREG)
+printf("%s\n",entry->d_name);
+}
+}
+else if(strcmp(p1,"N")==0)
+{
+cnt=0;
+while((entry=readdir(dir))!=NULL)
+{
+cnt++;
+}
+printf("\nTotal no. of entries in directory '%s' = %d",dname,cnt);
+}
+else if(strcmp(p1,"I")==0)
+{
+while((entry=readdir(dir))!=NULL)
+{
+stat(entry->d_name,&info);
+if(info.st_mode & S_IFREG)
+{
+printf("File name=%s\t",entry->d_name);
+}
+printf("Inode=%d\n",info.st_ino);
+}
+}
+}
+}
+int main()
+{
+char cmd[80],tok1[10],tok2[10],tok3[10],tok4[10];
+int n;
+while(1)
+{
+printf("\nNEWSHELL $]");
+fgets(cmd,80,stdin);
+n=sscanf(cmd,"%s%s%s%s",tok1,tok2,tok3,tok4);
+switch(n)
+{
+case 1:
+if(fork()==0){
+execlp(tok1,tok1,NULL);
+}
+wait();
+break;
+case 2:
+if(fork()==0)
+{
+execlp(tok1,tok1,tok2,NULL);
+}
+wait();
+break;
+case 3:
+if(fork()==0)
+{
+if(strcmp(tok1,"list")==0)
+{
+list(tok2,tok3);
+}
+else
+{
+if(fork()==0)
+{
+execlp(tok1,tok1,tok2,tok3,NULL);
+}
+wait();
+}
+break;
+case 4:
+if(fork()==0)
+{
+execlp(tok1,tok1,tok2,tok3,tok4,NULL);
+}
+wait();
+break;
+}
+}
+}
+}
+
+
+
+student@MSCComp26:~/Desktop/MCS$ ./a.out
+
+NEWSHELL $]list F                  
+
+NEWSHELL $]list.c
+
+NEWSHELL $]list.c
+
+NEWSHELL $].c
+
+NEWSHELL $]vi abc.txt
+
+NEWSHELL $]vi amit.txt
+
+NEWSHELL $]
+
+
+
+=======================================
+
+
+slip7_1
+
+#include<stdlib.h>
+#include<stdio.h>
+#include<unistd.h>
+#include<fcntl.h>
+#include<sys/types.h>
+char buf1[]="abcedefghij";
+char buf2[]="ABCDEFGHIJ";
+int main(void)
+{
+int fd;
+int FILE_MODE;
+if((fd=creat("file.hole",FILE_MODE))<0)
+printf("creat error");
+if(write(fd,buf1,10)!=10)
+printf("buf1 writeerror");
+if(lseek(fd,16384,SEEK_SET)==-1)
+printf("lseek error");
+if(write(fd,buf2,10)!=10)
+printf("buf2 write error");
+exit(0);
+}
+
+output
+
+student@MSCComp26:~/Downloads/mcs$ cc slip7_1.c
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+##file.hole file created in our prsent folder
+
+__________________________________________________
+
+slip7_2
+
+#include<stdio.h>
+#include<unistd.h>#include<sys/types.h>
+#include<sys/wait.h>
+#include<stdlib.h>
+int main()
+{
+int pid;
+pid=fork();
+if(pid<0)
+{
+printf("\n FORK failed");
+exit(-1);
+}
+else if (pid==0)
+{
+execlp("/bin/ls","ls","-l",NULL);
+}
+else
+{
+wait(NULL);
+printf("\n child complete\n");
+exit(0);
+}
+}   
+
+
+
+output---
+student@MSCComp26:~/Downloads/mcs$ vi slip7_b.c
+student@MSCComp26:~/Downloads/mcs$ cc slip7_b.c
+slip7_b.c:2:19: warning: extra tokens at end of #include directive
+    2 | #include<unistd.h>#include<sys/types.h>
+      |                   ^
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+total 128
+-rw-rw-r-- 1 student student 10889 May  6 13:52  AOS.txt
+-rwxrwxr-x 1 student student 16912 May  6 14:05  a.out
+-rw-rw-r-- 1 student student   599 May  6 11:32  childmsg.c
+---------- 1 student student 16394 May  6 13:47  file.hole
+-rw-rw-r-- 1 student student  1376 May  6 13:40  list.c
+-rw-rw-r-- 1 student student  1033 May  6 11:41  merge.c
+-rw-rw-r-- 1 student student   742 May  6 10:50  slip1.c
+-rw-rw-r-- 1 student student   618 May  6 10:58  slip2_1.c
+-rw-rw-r-- 1 student student   392 May  6 10:56  slip2_2.c
+-rw-rw-r-- 1 student student   800 May  6 11:03  slip2.c
+-rw-rw-r-- 1 student student   657 May  6 11:06  slip3_1.c
+-rw-rw-r-- 1 student student   482 May  6 11:16  slip3_b.c
+-rw-rw-r-- 1 student student   950 May  6 11:13  slip3.c
+-rw-rw-r-- 1 student student  1189 May  6 11:23  slip4_a.c
+-rw-rw-r-- 1 student student   396 May  6 11:25  slip4_b.c
+-rw-rw-r-- 1 student student  1376 May  6 13:36  slip62.c
+-rw-rw-r-- 1 student student   524 May  6 13:53  slip6.c
+-rw-rw-r-- 1 student student   300 May  6 14:04  slip7_b.c
+-rw-rw-r-- 1 student student   426 May  6 14:01  slip7.c
+-rw-rw-r-- 1 student student    25 May  6 11:34  tata.txt
+-rw-rw-r-- 1 student student    25 May  6 11:36  temp
+-rw-rw-r-- 1 student student    31 May  6 11:46  temptt.txt
+-rw-rw-r-- 1 student student    25 May  6 11:37  temp.txt
+-rw-rw-r-- 1 student student     6 May  6 11:46  tt.txt
+-rw-rw-r-- 1 student student    19 May  6 10:51 'Untitled Document 1'
+
+ child complete
+
+================================================================
+
+slip8_1
+
+#include<stdio.h>
+#include<sys/resource.h>
+#include<string.h>
+#include<errno.h>
+#include<unistd.h>
+#include<sys/types.h>
+#include<sys/stat.h>
+#include<fcntl.h>
+int main()
+{
+struct rlimit old_lim,lim,new_lim;
+//Get old limits
+if(getrlimit(RLIMIT_NOFILE,&old_lim)==0)
+printf("Old limits->soft limit='%d'\t""hard limit=%ld\n",old_lim.rlim_cur,old_lim.rlim_max);
+else
+fprintf(stderr,"%s\n",strerror(errno));
+//Set new value
+lim.rlim_cur=3;
+lim.rlim_max=1024;
+//Set limit
+if(setrlimit(RLIMIT_NOFILE,&lim)==-1)
+fprintf(stderr,"%s\n",strerror(errno));
+//Get new limit
+if(getrlimit(RLIMIT_NOFILE,&lim)==-1)
+printf("New limits->soft limit='%d'\t"" hard limit=%ld\n",new_lim.rlim_cur,new_lim.rlim_max);
+else
+fprintf(stderr,"%s\n",strerror(errno));
+return 0;
+}
+
+output----
+tudent@MSCComp26:~/Downloads/mcs$ cc slip8_1.c
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+Old limits->soft limit='1024'	hard limit=1048576
+Success
+______________________________________________________
+
+slip8_2
+
+#include<stdio.h>
+#include<unistd.h>
+#include<dirent.h>
+#include<sys/stat.h>
+#include<limits.h>
+#include<string.h>
+int main()
+{
+DIR *dir1,*dir2;
+int fd,cur_size,min_size;
+struct dirent *dirent1,*dirent2;
+struct stat st1,st2;
+char min_file_name[1000];
+char filename[1000];
+dir1=opendir(".");
+while ((dirent1=readdir(dir1))!=NULL)
+{
+min_size=INT_MAX;
+dir2=opendir(".");
+while((dirent2=readdir (dir2)) != NULL)
+{
+stat(dirent2->d_name,&st1);
+cur_size=st1.st_size;
+strcpy(filename,dirent2->d_name);
+if(cur_size<=min_size&&strcmp(min_file_name, filename) !=0)
+{
+min_size=cur_size;
+strcpy(min_file_name,dirent2->d_name);
+}
+}
+printf("File name = %s || size = %d\n",min_file_name,min_size);
+}
+}
+
+
+output-----
+student@MSCComp26:~/Downloads/mcs$ vi slip8_2.c
+student@MSCComp26:~/Downloads/mcs$ cc slip8_2.c
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+File name = tt.txt || size = 6
+
+===========================================================
+
+
+--------------------------------------------------------------------------------------------------------------------
+slip9_A
+
+
+#include<stdio.h>
+void main(int argc,char*argv[],char*envp[])
+{
+int i;
+for(i=0;envp[i]!=NULL;i++)
+{
+printf("\n %s",envp[i]);
+}
+}
+
+OUTPUT :
+tudent@MSCComp26:~/Desktop/MCS$ vi slip9_A.c
+student@MSCComp26:~/Desktop/MCS$ cc slip9_A.c
+student@MSCComp26:~/Desktop/MCS$ ./a.out
+
+ SHELL=/bin/bash
+ SESSION_MANAGER=local/MSCComp26:@/tmp/.ICE-unix/2426,unix/MSCComp26:/tmp/.ICE-unix/2426
+ QT_ACCESSIBILITY=1
+ COLORTERM=truecolor
+ XDG_CONFIG_DIRS=/etc/xdg/xdg-ubuntu:/etc/xdg
+ no_proxy=localhost,127.0.0.0/8,::1
+ XDG_MENU_PREFIX=gnome-
+ GNOME_DESKTOP_SESSION_ID=this-is-deprecated
+ LANGUAGE=en_IN:en
+ JAVA_HOME=/usr/lib/jvm/jdk-17
+ GNOME_SHELL_SESSION_MODE=ubuntu
+ SSH_AUTH_SOCK=/run/user/1000/keyring/ssh
+ XMODIFIERS=@im=ibus
+ DESKTOP_SESSION=ubuntu
+ SSH_AGENT_PID=2388
+ GTK_MODULES=gail:atk-bridge
+ DBUS_STARTER_BUS_TYPE=session
+ PWD=/home/student/Desktop/MCS
+ LOGNAME=student
+ XDG_SESSION_DESKTOP=ubuntu
+ XDG_SESSION_TYPE=x11
+ GPG_AGENT_INFO=/run/user/1000/gnupg/S.gpg-agent:0:1
+ XAUTHORITY=/run/user/1000/gdm/Xauthority
+ ftp_proxy=http://10.0.0.254:3128/
+ WINDOWPATH=2
+ HOME=/home/student
+ USERNAME=student
+ IM_CONFIG_PHASE=1
+ LANG=en_IN
+ LS_COLORS=rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:
+ XDG_CURRENT_DESKTOP=ubuntu:GNOME
+ VTE_VERSION=6003
+ GNOME_TERMINAL_SCREEN=/org/gnome/Terminal/screen/dcd4b1fd_84bb_4ae1_8079_f01f1b9984e2
+ https_proxy=http://10.0.0.254:3128/
+ INVOCATION_ID=bf54bdd0ab6d4230b70eed686e29c164
+ MANAGERPID=2210
+ LESSCLOSE=/usr/bin/lesspipe %s %s
+ XDG_SESSION_CLASS=user
+ TERM=xterm-256color
+ LESSOPEN=| /usr/bin/lesspipe %s
+ LIBVIRT_DEFAULT_URI=qemu:///system
+ USER=student
+ NO_PROXY=localhost,127.0.0.0/8,::1
+ FTP_PROXY=http://10.0.0.254:3128/
+ GNOME_TERMINAL_SERVICE=:1.120
+ DISPLAY=:0
+ SHLVL=1
+ HTTPS_PROXY=http://10.0.0.254:3128/
+ HTTP_PROXY=http://10.0.0.254:3128/
+ QT_IM_MODULE=ibus
+ DBUS_STARTER_ADDRESS=unix:path=/run/user/1000/bus,guid=55a19a920b878575d2038ec5645608ab
+ http_proxy=http://10.0.0.254:3128/
+ XDG_RUNTIME_DIR=/run/user/1000
+ ALL_PROXY=socks://10.0.0.254:3131/
+ JOURNAL_STREAM=8:52543
+ XDG_DATA_DIRS=/usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop
+ all_proxy=socks://10.0.0.254:3131/
+ PATH=/usr/lib/jvm/jdk-17/bin:/opt/scala3-3.1.1/bin:/home/student/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/opt/anaconda3/bin
+ GDMSESSION=ubuntu
+ DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus,guid=55a19a920b878575d2038ec5645608ab
+----------------------------------------------------------------------------------------------------------------
+slip9_B.c
+
+
+#include<stdio.h>
+#include<dirent.h>
+int main()
+{
+struct dirent*d;
+DIR*dr;
+dr=opendir(".");
+if(dr!=NULL)
+{
+printf("List of Files & Folders:-\n");for(d=readdir(dr); d!=NULL;d=readdir(dr))
+{
+printf("%s\n",d->d_name);
+}
+closedir(dr);
+}
+else
+printf("\n Error occured while opening the current directory!");
+return 0;
+}
+
+
+
+student@MSCComp26:~/Desktop/MCS$ vi slip9_B.c
+student@MSCComp26:~/Desktop/MCS$ cc slip9_B.c
+student@MSCComp26:~/Desktop/MCS$ ./a.out
+List of Files & Folders:-
+a.out
+slip9_A.c
+.
+..
+slip9_B.c
+
+================================================================
+slip10_A
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<malloc.h>
+#define MAX_ALLOCS 2000000
+static void
+display(void)
+{
+struct mallinfo mi;
+mi = mallinfo();
+printf("Total non-mmapped bytes (arena):%d\n", mi.arena);
+printf("# of free chunks (ordblks):%d\n", mi.ordblks);
+printf("# of free fastbin blocks (smblks): %d\n", mi.smblks);
+printf("# of mapped regions (hblks):%d\n", mi.hblks);
+printf("Bytes in mapped regions (hblkhd): %d\n", mi.hblkhd);
+printf("Max. total allocated space (usmblks): %d\n", mi.usmblks);
+printf("Free bytes held in fastbins (fsmblks): %d\n", mi.fsmblks);
+printf("Total allocated space (uordblks):%d\n", mi.uordblks);
+printf("Total free space (fordblks):%d\n", mi.fordblks);
+printf("Topmost releasable block (keepcost): %d\n", mi.keepcost);
+}
+int main(int argc,char *argv[])
+{
+char *alloc[MAX_ALLOCS];
+int numBlocks,freeBegin,freeEnd,freeStep;
+size_t blockSize;
+if(argc<3||strcmp(argv[1],"--help")==0)
+{
+fprintf(stderr,"%s num-blocks block-size[free-step""[start-free[end-free]]]\n",argv[0]);
+exit(EXIT_FAILURE);
+}
+numBlocks=atoi(argv[1]);
+blockSize=atoi(argv[2]);
+freeStep=(argc>3)?atoi(argv[3]):1;
+freeBegin=(argc>4)?atoi(argv[4]):0;
+freeEnd=(argc>5)?atoi(argv[5]):numBlocks;
+printf("========Before allocating blocks========\n");
+display();
+for(int j=0;j<numBlocks;j++)
+{
+if(numBlocks>=MAX_ALLOCS)
+{
+fprintf(stderr,"Too many allocations\n");exit(EXIT_FAILURE);
+}
+alloc[j]=malloc(blockSize);
+if(alloc[j]==NULL)
+{
+printf("malloc");
+exit(EXIT_FAILURE);
+}
+}
+printf("========After allocating blocks========\n");
+display();
+for(int j=freeBegin;j<freeEnd;j+=freeStep)
+free(alloc[j]);
+printf("========After freeing blocks========\n");
+display();
+exit(EXIT_SUCCESS);
+}
+
+
+
+student@MSCComp26:~/Desktop/MCS$ vi slip10_A.c
+student@MSCComp26:~/Desktop/MCS$ vi slip10_A.c
+student@MSCComp26:~/Desktop/MCS$ cc slip10_A.c
+student@MSCComp26:~/Desktop/MCS$ ./a.out
+Segmentation fault (core dumped)
+
+-------------------------------------------------------------------------------
+slip10_B
+
+
+
+#include<stdlib.h>
+#include<stdio.h>
+#include<fcntl.h>
+#define RWRWRW (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH)
+int main(void)
+{
+umask(0);
+if(creat("foo",RWRWRW)<0)
+printf("creat error for foo");
+umask(S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
+if(creat("bar",RWRWRW)<0)
+printf("creat error for bar");
+if(chmod("bar",S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)<0)
+printf("chmod error for bar");
+exit(0);
+}
+
+
+
+student@MSCComp26:~/Desktop/MCS$ ls
+a.out  bar  foo  slip10_A.c  slip10_B.c  slip9_A.c  slip9_B.c  temp.txt
+student@MSCComp26:~/Desktop/MCS$ ls -l
+total 36
+-rwxrwxr-x 1 student student 16872 May  6 13:39 a.out
+-rw-r--r-- 1 student student     0 May  6 13:43 bar
+-rw-rw-rw- 1 student student     0 May  6 13:43 foo
+-rw-rw-r-- 1 student student  1696 May  6 13:38 slip10_A.c
+-rw-rw-r-- 1 student student   394 May  6 13:39 slip10_B.c
+-rw-rw-r-- 1 student student   129 May  6 13:32 slip9_A.c
+-rw-rw-r-- 1 student student   315 May  6 13:34 slip9_B.c
+-rw-rw-r-- 1 student student     0 May  6 13:43 temp.txt
+
+
+===================================================================
+slip11_A
+
+#include<stdio.h>#include<stdlib.h>
+#include<string.h>
+struct student
+{
+int stud_id;
+int name_len;
+int struct_size;
+char stud_name[0];
+};
+struct student* createStudent(struct student* s,int id, char a[])
+{
+s=alloca(sizeof(*s)+sizeof(char)*strlen(a));
+s->stud_id=id;
+s->name_len=strlen(a);
+strcpy(s->stud_name,a);
+s->struct_size=(sizeof(*s)+sizeof(char)*strlen(s->stud_name));
+return s;
+}
+void printStudent(struct student* s)
+{
+printf("Student_id:%d\n""stud_Name:%s\n""Name_Length:%d\n""Alloacted_Struct_size:%d\n\n",s->stud_id,s->stud_name,s>name_len,s->struct_size);
+}
+int main()
+{
+struct student *s1,*s2;
+s1=createStudent(s1,523,"SanjayIsha");
+printStudent(s1);
+s2=createStudent(s2,535,"Cherry");
+printStudent(s2);
+printf("Size of Struct student:%ld\n",sizeof(struct student));
+printf("Size of Struct pointer:%ld\n",sizeof(s1));
+return 0;
+}
+output:
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+Student_id:523
+stud_Name:SanjayIsha
+Name_Length:10
+Alloacted_Struct_size:22
+
+Student_id:535
+stud_Name:Cherry
+Name_Length:6
+Alloacted_Struct_size:18
+
+Size of Struct student:12
+Size of Struct pointer:8
+ 
+------------------------------------------------------------------------
+slip11_B
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<string.h>
+#include<fcntl.h>
+void count(char *p1,char*fname)
+{
+int handle,ccnt=0,wcnt=0,lcnt=0;
+char ch;
+handle=open(fname,O_RDONLY);
+if(handle==-1)
+{
+printf("\n File is not found.....",fname);
+}
+else
+{
+while(read(handle,&ch,1))
+{
+if(ch==' '||ch=='\t')
+wcnt++;
+else if(ch=='\n')
+{
+lcnt++;
+wcnt++;
+}
+ccnt++;
+}
+close(handle);
+if(strcmp(p1,"C")==0)
+{
+printf("\nTotal No. of character in file = %d",ccnt);
+}
+else if(strcmp(p1,"W")==0)
+{
+printf("\nTotal No. of words in file = %d",wcnt);
+}
+else if(strcmp(p1,"L")==0)
+{
+printf("\nTotal No. of Lines in file = %d",lcnt);
+}
+else
+{printf("\nInvalid option.........\n");
+}
+}
+}
+int main()
+{
+char cmd[80],tok1[10],tok2[10],tok3[10],tok4[10];
+int n;
+while(1)
+{
+printf("\nNEWSHELL $]");
+fgets(cmd,80,stdin);
+n=sscanf(cmd,"%s%s%s%s",tok1,tok2,tok3,tok4);
+switch(n)
+{
+case 1:
+if(fork()==0)
+{
+execlp(tok1,tok1,NULL);
+}
+wait();
+break;
+case 2:
+if(fork()==0)
+{
+execlp(tok1,tok1,tok2,NULL);
+}
+wait();
+break;
+case 3:
+if(fork()==0)
+{
+if(strcmp(tok1,"count")==0)
+{
+count(tok2,tok3);
+}
+else
+{
+if(fork()==0)
+{
+execlp(tok1,tok1,tok2,tok3,NULL);
+}
+wait();
+}
+break;
+case 4:
+if(fork()==0)
+{
+execlp(tok1,tok1,tok2,tok3,tok4,NULL);
+}
+wait();
+break;}
+}
+}
+}
+
+output:
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+
+NEWSHELL $]count C a.txt
+
+NEWSHELL $]
+Total No. of character in file = 4
+NEWSHELL $]count L a.txt
+
+NEWSHELL $]
+Total No. of Lines in file = 1
+---------------------------------------------------------------------
+
+slip12_A
+
+
+#include<unistd.h>
+#include<sys/types.h>
+#include<sys/stat.h>
+#include<time.h>
+#include<stdlib.h>
+#include<dirent.h>
+#include<stdio.h>
+#include<string.h>
+#include<getopt.h>
+#include<stdbool.h>
+#include<ctype.h>
+#include<sys/wait.h>
+#include<signal.h>
+#include<sys/mman.h>
+#include<sys/time.h>
+#define INTERVAL2
+int t=0;
+void display_message()
+{
+kill(0,SIGKILL);
+t=1;
+}
+void calling2()
+{
+sleep(3);
+}
+void calling()
+{
+signal(SIGALRM,display_message);int i;
+for(i=0;i<3;i++)
+{
+pid_t pID=fork();
+if(pID==0) //child
+{
+calling2();
+if(t==1)
+{
+printf("killing the process");
+kill(0,SIGKILL);
+exit(0);
+}
+exit(0);
+}
+else if(pID>0)
+{
+if(t==1)
+{
+printf("killing the process");
+kill(0,SIGKILL);
+exit(0);
+}
+printf("\n Hello from the father");
+}
+}
+}
+int main()
+{
+signal(SIGALRM,display_message);
+alarm(2);
+calling();
+//wait until alarm callback before terminating main thread
+sleep(15);
+}
+
+
+output:
+
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+
+ Hello from the father
+ Hello from the father
+Killed
+----------------------------------------------------------------
+
+slip12_B
+
+
+include<stdio.h>
+#include<dirent.h>
+int main()
+{
+struct dirent *de; //pinter for directory entry//opendir() returns a pointer of DIR type
+DIR *dr=opendir(".");
+if(dr==NULL) //opendir returns NULL if couldn't open
+{
+printf("Could not open current directory");
+return 0;
+}
+//for readdir()
+while ((de=readdir(dr))!=NULL)
+printf("%s\n",de->d_name);
+closedir(dr);
+return 0;
+}
+
+output:
+
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+slip11_A.c
+slip19_B.c
+slip12_B.c
+slip14_B.c
+slip16_A.c
+slip19_A.c
+a.out
+slip13_B.c
+anumber.txt
+slip13_A.c
+slip11_B.c
+.slip14_B.c.swp
+slip20_A.c
+number.txt
+slip15_B.c
+slip14_A.c
+slip20_B.c
+.
+slip12_A.c
+..
+anumber.txt.fread
+slip15_A.c
+a.txt
+------------------------------------------------------
+
+slip13_A
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<sys/stat.h>
+#include<sys/types.h>
+#include<fcntl.h>
+int main(void)
+{
+int number1,number2,sum;
+int input_fds=open("./input.txt",O_RDONLY);
+int output_fds=open("./output.txt",O_WRONLY|O_CREAT,S_IRUSR|S_IWUSR);
+dup2(input_fds,STDIN_FILENO);
+dup2(output_fds,STDOUT_FILENO);
+scanf("%d%d",&number1,&number2);
+sum=number1+number2;printf("%d+%d=%d\n",number1,number2,sum);
+return EXIT_SUCCESS;
+}
+
+
+output:
+
+
+
+
+-------------------------------------------------------------------------
+
+slip13_B
+
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<string.h>
+#include<fcntl.h> // open,read(),close() : file related function
+void typeline(char *p1,char*fname)
+{
+int handle,n,lcnt;
+char ch;
+handle=open(fname,O_RDONLY);
+if(handle==-1)
+{
+printf("\n File %s Not Found....",fname);
+}
+else
+{
+if(strcmp(p1,"a")==0)
+{
+/* Displaying All contents of file */
+printf("\nContents of FILE=%s\n",fname);
+while(read(handle,&ch,1)) //on failure read() function returns 0
+{
+printf("%c",ch);
+}
+close(handle);
+}
+else //else means parameter is either +n or -n
+{
+n=atoi(p1);
+lcnt=0;
+if(n>0)
+{
+printf("Displaying First %d lines of file\n",n);
+while(read(handle,&ch,1)){
+printf("%c",ch);
+if(ch=='\n')
+lcnt++;
+if(lcnt==n)
+break;
+}
+close(handle);
+}
+else
+{
+n=-n;
+printf("Displaying Last %d lines of file\n",n);
+while(read(handle,&ch,1))
+{
+if(ch=='\n')
+lcnt++;
+}
+n=lcnt-n;
+lcnt=0;
+lseek(handle,0,SEEK_SET); //starting from start of file again
+while(read(handle,&ch,1))
+{
+if(ch=='\n')
+lcnt++;
+if(lcnt==n)
+break;
+}
+while(read(handle,&ch,1))
+{
+printf("%c",ch);
+}
+close(handle);
+}
+}
+}
+}
+int main()
+{
+char cmd[80],tok1[10],tok2[10],tok3[10],tok4[10];
+int n;
+while(1)
+{
+printf("\nMYSHELL $]");
+fgets(cmd,80,stdin);
+n=sscanf(cmd,"%s%s%s%s",tok1,tok2,tok3,tok4); //n=no of tokens are formed from
+given commandswitch(n)
+{
+case 1:
+if(fork()==0)
+{
+execlp(tok1,tok1,NULL); //paramenters-
+nameOfProcess,parametersOfProcess
+}
+wait(0);
+break;
+case 2 :
+if(fork()==0)
+{
+execlp(tok1,tok1,tok2,NULL);
+}
+wait(0);
+break;
+case 3:
+if(strcmp(tok1,"typeline")==0)
+{
+typeline(tok2,tok3);
+}
+else
+{
+if(fork()==0)
+{
+execlp(tok1,tok1,tok2,tok3,NULL);
+}
+wait(0);
+}
+break;
+case 4 :
+if(fork()==0)
+{
+execlp(tok1,tok1,tok2,tok3,tok4,NULL);
+}
+wait(0);
+break;
+}
+}
+}
+
+output:
+
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+
+MYSHELL $]pwd
+/home/student/Downloads/mcs
+
+MYSHELL $]ls
+anumber.txt	   a.out  number.txt  program	  slip11_B.c  slip12_B.c  slip13_B.c  slip14_B.c  slip15_B.c  slip19_A.c  slip20_A.c
+anumber.txt.fread  a.txt  output.txt  slip11_A.c  slip12_A.c  slip13_A.c  slip14_A.c  slip15_A.c  slip16_A.c  slip19_B.c  slip20_B.c
+
+----------------------------------------------------------------------------------------------
+slip14_A
+
+
+#include<stdio.h>
+#include<string.h>
+#include<unistd.h>
+#define MSGSIZE 16
+int main()
+{
+int fd[2],ret=0;
+char buffer[]="Hello World";
+char buffer1[]="Hello SPPU";
+char buffer2[]="Linux is funny";
+char inbuf[MSGSIZE];
+pid_t childpid;
+pipe(fd);
+childpid=fork();
+if(childpid==0)
+{
+printf("Child initiates communication by writing the data at output side of the pipe\n");
+write(fd[1],buffer,MSGSIZE);
+write(fd[1],buffer1,MSGSIZE);
+write(fd[1],buffer2,MSGSIZE);
+}
+else
+{
+for(int i = 0;i < 3; i++)
+{
+read(fd[0],inbuf,MSGSIZE);
+printf("The data read by the parent process is: %s\n",inbuf);
+}
+}return 0;
+}
+
+output:
+
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+Child initiates communication by writing the data at output side of the pipe
+The data read by the parent process is: Hello World
+The data read by the parent process is: Hello SPPU
+The data read by the parent process is: Linux is funny
+------------------------------------------------------
+
+
+slip14_B
+
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<unistd.h>
+#include<string.h>
+#include<fcntl.h> // open,read(),close() : file related function
+void search(char *p1,char *pat,char*fname)
+{
+int handle,i=0,cnt=0;
+char ch,data[100],*ptr;
+handle=open(fname,O_RDONLY);
+if(handle==-1)
+{
+printf("\n File %s Not Found....",fname);
+}
+else
+{
+if(strcmp(p1,"F")==0)
+{
+i=0;
+while(read(handle,&ch,1)) //on failure read() function returns 0
+{
+data[i]=ch;
+i++;
+if(ch=='\n')
+{
+data[i]='\0';
+if(strstr(data,pat)!=NULL)
+{
+printf("\nFIRST OCCURANCE OF PATTERN IN LINE IS GIVEN BELOW\n");
+puts(data);
+break;
+}
+i=0;}
+}
+close(handle);
+}
+else if(strcmp(p1,"C")==0)
+{
+cnt=0;
+i=0;
+while(read(handle,&ch,1))
+//on failure read() function returns 0
+{
+data[i]=ch;
+i++;
+if(ch=='\n')
+{
+data[i]='\0';
+ptr=data;
+while((ptr=strstr(ptr,pat))!=NULL)
+{
+cnt++;
+ptr++;
+}
+i=0;
+}
+}
+printf("\nNo of occurances of '%s' = %d",pat,cnt);
+close(handle);
+}
+else if(strcmp(p1,"A")==0)
+{
+printf("\nDispaying All Occurances of '%s'\n",pat);
+i=0;
+while(read(handle,&ch,1))
+{
+data[i]=ch;
+i++;
+if(ch=='\n')
+{
+data[i]='\0';
+//on failure read() function returns 0
+if((ptr=strstr(data,pat))!=NULL)
+{
+puts(data);
+}
+i=0;
+}
+}
+}
+}
+//else}
+int main()
+{
+char cmd[80],tok1[10],tok2[10],tok3[10],tok4[10];
+int n;
+while(1)
+{
+printf("\nMYSHELL $]");
+if(gets(cmd,80,stdin));
+n=sscanf(cmd,"%s%s%s%s",tok1,tok2,tok3,tok4); //n=no of tokens are formed from given command
+switch(n)
+{
+case 1:
+if(fork()==0)
+{
+execlp(tok1,tok1,NULL); //paramenters-nameOfProcess,parametersOfProcess
+}
+wait(0);
+break;
+case 2 :
+if(fork()==0)
+{
+execlp(tok1,tok1,tok2,NULL);
+}
+wait(0);
+break;
+case 3:
+if(fork()==0)
+{
+execlp(tok1,tok1,tok2,tok3,NULL);
+}
+wait(0);
+break;
+case 4 :
+if(strcmp(tok1,"search")==0)
+{
+search(tok2,tok3,tok4);
+}
+else
+{
+if(fork()==0)
+{
+execlp(tok1,tok1,tok2,tok3,tok4,NULL);
+}
+wait(0); }
+break;
+}
+}
+}
+output:
+
+
+
+-----------------------------------------------------------------
+slip15_A
+
+#include<stdio.h>
+#include<sys/stat.h>
+#include<stdlib.h>
+int main(int argc,char**argv)
+{
+struct stat*st;
+st=(struct stat*) malloc(sizeof(struct stat));
+stat(argv[1],st);
+if(S_ISDIR(st->st_mode))
+printf("file type is :Directory\n");
+else if(S_ISCHR(st->st_mode))
+printf("file type is : Character device\n");
+else if(S_ISBLK(st->st_mode))
+printf("file type is : Block device\n");
+else if(S_ISREG(st->st_mode))
+printf("file type is : Regular File\n");else if(S_ISFIFO(st->st_mode))
+printf("file type is : FIFO or pipe\n");
+else if(S_ISLNK(st->st_mode))
+printf("file type is : Symbolic link\n");
+else if(S_ISSOCK(st->st_mode))
+printf("file type is :Socket\n");
+return 0;
+}
+
+
+output:
+
+student@MSCComp26:~/Downloads/mcs$ ./a.out anumber.txt
+file type is : Regular File
+---------------------------------------------------------------------
+slip15_B
+
+
+#include<signal.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<unistd.h>
+//function declaration
+void sighup();
+void sigint();
+void sigquit();
+//driver code
+void main()
+{
+int pid;
+/* get child process*/
+if((pid=fork())<0)
+{
+perror("fork");
+exit(1);
+}
+if(pid==0)
+{/* child*/
+signal(SIGHUP,sighup);
+signal(SIGINT,sigint);
+signal(SIGQUIT,sigquit);
+for(;;); //loop for ever
+}
+else/* parent*/
+{
+/* pid hold id of child*/
+printf("\n PARENT:sending SIGHUP\n\n");kill(pid,SIGHUP);
+sleep(3); //pause for 3 secs
+printf("\n PARENT:sending SIGHUP\n\n");
+kill(pid,SIGINT);
+sleep(3); //pause for 3 secs
+printf("\n PARENT:sending SIGQUIT\n\n");
+kill(pid,SIGQUIT);
+sleep(3);
+}
+}
+//sighup() function definition
+void sighup()
+{
+signal(SIGHUP,sighup); //reset signal
+printf("CHILD:I have received a SIGHUP\n");
+}
+//sigint() function definition
+void sigint()
+{
+signal(SIGINT,sigint); //reset signal
+printf("CHILD:I have received a SIGINT\n");
+}
+//sigquit() function definition
+void sigquit()
+{
+printf("My DADDY has killed me !!!\n");
+exit(0);
+}
+
+
+output:
+
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+
+ PARENT:sending SIGHUP
+
+CHILD:I have received a SIGHUP
+
+ PARENT:sending SIGHUP
+
+CHILD:I have received a SIGINT
+
+ PARENT:sending SIGQUIT
+
+My DADDY has killed me !!!
+-------------------------------------------------------
+slip16_A
+
+#include<signal.h>
+#include<stdio.h>
+#include<unistd.h>
+void ouch(int sig)
+{
+printf("Ouch! -I got the signal %d\n",sig);
+(void) signal(SIGINT, SIG_DFL);
+}
+int main()
+{
+(void)signal(SIGINT, ouch);
+while(1)
+{
+printf("Hello World!\n");
+break;
+sleep(1);
+}
+}
+
+
+output:
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+Hello World!
+
+---------------------------------------------------------
+
+slip20_A
+
+
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<sys/types.h>
+#include<sys/wait.h>
+int main(void)
+{
+pid_t pid=fork();
+if(pid==0)
+{
+execl("/bin/sh","bin/sh","-c","/home/student/AOSPrac","NULL");
+}
+int status;
+waitpid(pid,&status,0);
+if(WIFEXITED(status))
+{
+int exit_status=WEXITSTATUS(status);
+printf("Exit status of the child was %d\n",exit_status);}
+return 0;
+}
+
+output:
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+NULL: 1: /home/student/AOSPrac: not found
+Exit status of the child was 127
+--------------------------------------------------------------
+slip19_A
+
+#include<stdio.h>
+#include<stdlib.h> //for exit()
+int main()
+{
+FILE *fptr1,*fptr2;
+char filename[100], filename1[100],c;
+printf("Enter the filename to open for reading");
+scanf("%s",filename);
+//Open one file for reading
+fptr1=fopen(filename,"r");
+if(fptr1==NULL)
+{
+printf("Cannot open file %s",filename);
+exit(0);
+}
+printf("Enter the filename to open for writing");
+scanf("%s",filename1);
+//Open another file for writing
+fptr2=fopen(filename1,"w");
+if(fptr2==NULL)
+{
+printf("Cannot open file %s",filename1);
+exit(0);
+}
+//Read content from file
+c=fgetc(fptr1);
+while(c!=EOF)
+{fputc(c,fptr2);
+c=fgetc(fptr1);
+}
+printf("Contents copied to %s",filename1);
+if(remove(filename)!=0)
+perror("Error deleting file");
+else
+puts("File successfully deleted");
+return 0;
+fclose(fptr1);
+fclose(fptr2);
+return 0;
+}
+
+
+
+output:
+
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+Enter the filename to open for readinga.txt
+Enter the filename to open for writinga.txt
+Contents copied to a.txtFile successfully deleted
+------------------------------------------------------------------------
+
+slip19_B
+
+#include<signal.h>
+#include<stdio.h>
+#include<unistd.h>
+#include<sys/types.h>
+#include<stdlib.h>
+static int alarm_fired=0;
+void ding(int sig)
+{
+alarm_fired=1;
+}
+int main()
+{
+pid_t pid;
+pid=fork();
+if(pid<0)
+{
+printf("unable to fork.\n");
+exit(1);
+}
+else
+{
+if(pid>0)
+{
+signal(SIGALRM,ding);pause();
+if(alarm_fired)
+printf("DingDong! alarm clock.\n");
+printf("Current time is : \n");
+system("date");
+exit(0);
+}
+else
+{
+sleep(1);
+kill(getppid(),SIGALRM);
+exit(0);
+}
+}
+}
+
+
+
+output:
+
+student@MSCComp26:~/Downloads/mcs$ ./a.out
+DingDong! alarm clock.
+Current time is : 
+Saturday 06 May 2023 02:47:46 PM IST
+
+------------------------------
+slip20_B
+
+#include<stdio.h>
+#include<fcntl.h>
+#include<unistd.h>
+#include<sys/stat.h>
+#include<string.h>
+#define BUF_SIZE 32
+#define FILE_NAME_LEN 200
+int main(int argc,char *argv[])
+{
+FILE*file_to_read;
+FILE*file_to_write;
+char name_of_file_to_read[FILE_NAME_LEN+1];
+char name_of_file_to_write[FILE_NAME_LEN+1];
+char buf[BUF_SIZE];
+size_t num_rec;
+if(argc>3||argc<3)
+{
+printf("Please provide two argument\n");
+}
+else
+{
+if(access(argv[1],F_OK<0))
+{
+printf("%s not found\n",argv[1]);
+}
+/*Preapre the source"file name*/
+strcpy(name_of_file_to_read,argv[1]);
+/*Preapre the target file name*/
+if(argc==3)
+strcat(strcpy(name_of_file_to_write,name_of_file_to_read),".fread");
+/*Open source file in read-only memory*/
+if((file_to_read=fopen(name_of_file_to_read,"r"))==NULL)
+{
+fprintf(stderr,"Could not open file '%s' for reading\n",name_of_file_to_read);
+return 3;
+}
+/*Open target file in write mode*/
+if((file_to_write=fopen(name_of_file_to_write,"w"))==NULL)
+{
+fprintf(stderr,"Could not open file '%s' for writing\n",name_of_file_to_write);
+fclose(file_to_read);return 4;
+}
+while((num_rec=fread(buf,sizeof(char),BUF_SIZE,file_to_read))>0)
+{
+fwrite(buf,sizeof(char),num_rec,file_to_write);
+if(ferror(file_to_write))
+{
+fprintf(stderr,"Error while writing into file '%s'\n",name_of_file_to_write);
+fclose(file_to_read);
+fclose(file_to_write);
+return 5;
+}
+}
+if(ferror(file_to_read))
+{
+fprintf(stderr,"Error while reading the file '%s'\n",name_of_file_to_read);
+fclose(file_to_read);
+fclose(file_to_write);
+return 6;
+}
+/*close the files*/
+fclose(file_to_read);
+fclose(file_to_write);
+printf("File '%s' successfully copied to file '%s'\n",name_of_file_to_read,name_of_file_to_write);
+return 1;
+}
+}
+
+output:
+
+student@MSCComp26:~/Downloads/mcs$ ./a.out anumber.txt number.txt
+File 'anumber.txt' successfully copied to file 'anumber.txt.fread'
+-------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
